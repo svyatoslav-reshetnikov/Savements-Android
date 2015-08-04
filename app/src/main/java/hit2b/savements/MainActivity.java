@@ -11,9 +11,11 @@ import android.content.res.Configuration;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v7.app.AlertDialog;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.WebChromeClient;
@@ -38,7 +40,10 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 networkStateReceiver = new NetworkStateReceiver();
-                registerReceiver(networkStateReceiver, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+                IntentFilter intentFilter = new IntentFilter();
+                intentFilter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
+                //intentFilter.addAction("android.net.wifi.WIFI_STATE_CHANGED");
+                registerReceiver(networkStateReceiver, intentFilter);
             }
         }, 2000);
     }
@@ -70,6 +75,21 @@ public class MainActivity extends Activity {
         });
     }
 
+    private void showAlert() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setTitle("Соединение прервано!")
+                .setMessage("Проверьте в настройках ваше соединение с интернетом")
+                .setCancelable(false)
+                .setNegativeButton("OK",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                dialog.cancel();
+                            }
+                        });
+        AlertDialog alert = builder.create();
+        alert.show();
+    }
+
     @Override
     public void onDestroy () {
         super.onDestroy();
@@ -84,25 +104,14 @@ public class MainActivity extends Activity {
 
     public class NetworkStateReceiver extends BroadcastReceiver {
         public void onReceive(Context context, Intent intent) {
+
             if(intent.getExtras()!=null) {
-                NetworkInfo ni=(NetworkInfo) intent.getExtras().get(ConnectivityManager.EXTRA_NETWORK_INFO);
-                if(ni!=null && ni.getState()==NetworkInfo.State.CONNECTED) {
+                ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                NetworkInfo networkInfo = cm.getActiveNetworkInfo();
+                if(networkInfo!=null && networkInfo.getState()==NetworkInfo.State.CONNECTED) {
                     setWebView();
                 }
-            }
-            if(intent.getExtras().getBoolean(ConnectivityManager.EXTRA_NO_CONNECTIVITY,Boolean.FALSE)) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setTitle("Соединение прервано!")
-                        .setMessage("Проверьте в настройках ваше соединение с интернетом")
-                        .setCancelable(false)
-                        .setNegativeButton("OK",
-                                new DialogInterface.OnClickListener() {
-                                    public void onClick(DialogInterface dialog, int id) {
-                                        dialog.cancel();
-                                    }
-                                });
-                AlertDialog alert = builder.create();
-                alert.show();
+                else showAlert();
             }
         }
     }
